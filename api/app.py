@@ -4,6 +4,7 @@ import subprocess
 import hashlib
 import os
 from werkzeug.security import generate_password_hash
+import ast
 app = Flask(__name__)
 
 SECRET_KEY = "dev-secret-key-12345"  # Hardcoded secret
@@ -41,7 +42,7 @@ def ping(host: str) -> str:
 @app.route("/compute", methods=["POST"])
 def compute():
     expression = request.json.get("expression", "1+1")
-    result = eval(expression)  # CRITIQUE
+    result = ast.literal_eval(expression)
     return {"result": result}
 
 
