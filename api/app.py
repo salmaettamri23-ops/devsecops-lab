@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash
 import ast
 app = Flask(__name__)
 
-SECRET_KEY = "dev-secret-key-12345"  # Hardcoded secret
+SECRET_KEY = os.environ.get("SECRET_KEY", "default-secret")  # Hardcoded secret
 
 
 @app.route("/login", methods=["POST"])
@@ -18,8 +18,8 @@ def login():
     conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
 
-    query = f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
-    cursor.execute(query)
+    query = "SELECT * FROM users WHERE username=? AND password=?"
+    cursor.execute(query, (username, password))
 
     result = cursor.fetchone()
     if result:
@@ -29,21 +29,25 @@ def login():
 
 
 @app.route("/ping", methods=["POST"])
-def ping(host: str) -> str:
+def ping():
+    host = request.json.get("host", "")
+
     result = subprocess.check_output(
         ["ping", "-c", "1", host],
         text=True
     )
-    return result
 
-    return {"output": output.decode()}
+    return {"output": result}
 
 
 @app.route("/compute", methods=["POST"])
 def compute():
     expression = request.json.get("expression", "1+1")
-    result = ast.literal_eval(expression)
-    return {"result": result}
+    try:
+        result = ast.literal_eval(expression)
+        return {"result": result}
+    except:
+        return {"error": "invalid expression"}
 
 
 @app.route("/hash", methods=["POST"])
@@ -56,6 +60,9 @@ def hash_password():
 @app.route("/readfile", methods=["POST"])
 def readfile():
     filename = request.json.get("filename", "test.txt")
+    if ".." in filename:
+        return {"error": "invalid filename"}
+
     with open(filename, "r") as f:
         content = f.read()
 
@@ -65,11 +72,7 @@ def readfile():
 @app.route("/debug", methods=["GET"])
 def debug():
     # Renvoie des détails sensibles -> mauvaise pratique
-    return {
-        "debug": True,
-        "secret_key": SECRET_KEY,
-        "environment": dict(os.environ)
-    }
+    return {"error": "forbidden"}
 
 
 @app.route("/hello", methods=["GET"])
